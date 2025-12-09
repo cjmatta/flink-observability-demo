@@ -1,0 +1,830 @@
+{
+    "generators": [
+        {
+            "_comment": "=== STRUCTURED JSON APPLICATION LOGS ===",
+            "connection": "confluent-cloud",
+            "topic": "logs-structured",
+            "fork": {
+                "key": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "api-gateway",
+                        "auth-service",
+                        "user-service",
+                        "payment-service",
+                        "order-service"
+                    ]
+                },
+                "maxForks": 5,
+                "stagger": {
+                    "ms": 100
+                }
+            },
+            "varsOnce": {
+                "hostname": {
+                    "_gen": "interpolate",
+                    "template": ":service-:num.prod.internal",
+                    "params": {
+                        "service": {
+                            "_gen": "var",
+                            "var": "forkKey"
+                        },
+                        "num": {
+                            "_gen": "uniformDistribution",
+                            "bounds": [
+                                10,
+                                99
+                            ],
+                            "decimals": 0
+                        }
+                    }
+                },
+                "containerId": {
+                    "_gen": "gitSha"
+                }
+            },
+            "vars": {
+                "service": {
+                    "_gen": "var",
+                    "var": "forkKey"
+                },
+                "traceId": {
+                    "_gen": "uuid"
+                },
+                "spanId": {
+                    "_gen": "uuid"
+                }
+            },
+            "key": {
+                "_gen": "var",
+                "var": "service"
+            },
+            "value": {
+                "timestamp": {
+                    "_gen": "formatDateTime",
+                    "ms": {
+                        "_gen": "now"
+                    },
+                    "format": "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+                },
+                "level": {
+                    "_gen": "weightedOneOf",
+                    "choices": [
+                        {
+                            "weight": 65,
+                            "value": "INFO"
+                        },
+                        {
+                            "weight": 15,
+                            "value": "DEBUG"
+                        },
+                        {
+                            "weight": 12,
+                            "value": "WARN"
+                        },
+                        {
+                            "weight": 6,
+                            "value": "ERROR"
+                        },
+                        {
+                            "weight": 2,
+                            "value": "FATAL"
+                        }
+                    ]
+                },
+                "service": {
+                    "_gen": "var",
+                    "var": "service"
+                },
+                "host": {
+                    "_gen": "var",
+                    "var": "hostname"
+                },
+                "container_id": {
+                    "_gen": "var",
+                    "var": "containerId"
+                },
+                "trace_id": {
+                    "_gen": "var",
+                    "var": "traceId"
+                },
+                "span_id": {
+                    "_gen": "var",
+                    "var": "spanId"
+                },
+                "message": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "Request processed successfully",
+                        "Database connection established",
+                        "Cache miss - fetching from origin",
+                        "Rate limit threshold approaching",
+                        "Authentication token refreshed",
+                        "Downstream service timeout - retry initiated",
+                        "Circuit breaker state: HALF_OPEN",
+                        "Memory pressure detected - triggering GC"
+                    ]
+                },
+                "http_method": {
+                    "_gen": "weightedOneOf",
+                    "choices": [
+                        {
+                            "weight": 55,
+                            "value": "GET"
+                        },
+                        {
+                            "weight": 25,
+                            "value": "POST"
+                        },
+                        {
+                            "weight": 12,
+                            "value": "PUT"
+                        },
+                        {
+                            "weight": 8,
+                            "value": "DELETE"
+                        }
+                    ]
+                },
+                "http_status": {
+                    "_gen": "weightedOneOf",
+                    "choices": [
+                        {
+                            "weight": 82,
+                            "value": 200
+                        },
+                        {
+                            "weight": 5,
+                            "value": 201
+                        },
+                        {
+                            "weight": 4,
+                            "value": 400
+                        },
+                        {
+                            "weight": 5,
+                            "value": 404
+                        },
+                        {
+                            "weight": 3,
+                            "value": 500
+                        },
+                        {
+                            "weight": 1,
+                            "value": 503
+                        }
+                    ]
+                },
+                "latency_ms": {
+                    "_gen": "normalDistribution",
+                    "mean": 45,
+                    "sd": 30,
+                    "decimals": 0,
+                    "clamp": [
+                        1,
+                        5000
+                    ]
+                },
+                "client_ip": {
+                    "_gen": "string",
+                    "expr": "#{Internet.publicIpV4Address}"
+                }
+            },
+            "localConfigs": {
+                "throttleMs": {
+                    "_gen": "uniformDistribution",
+                    "bounds": [
+                        20,
+                        150
+                    ]
+                }
+            }
+        },
+        {
+            "_comment": "=== RAW SYSLOG FORMAT - Needs Flink parsing ===",
+            "connection": "confluent-cloud-raw",
+            "topic": "logs-syslog-raw",
+            "fork": {
+                "key": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "web-01",
+                        "web-02",
+                        "db-master",
+                        "db-replica",
+                        "cache-01",
+                        "lb-01"
+                    ]
+                },
+                "maxForks": 6,
+                "stagger": {
+                    "ms": 50
+                }
+            },
+            "vars": {
+                "host": {
+                    "_gen": "var",
+                    "var": "forkKey"
+                },
+                "facility": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        16,
+                        17,
+                        18,
+                        19,
+                        20,
+                        21,
+                        22,
+                        23
+                    ]
+                },
+                "severity": {
+                    "_gen": "weightedOneOf",
+                    "choices": [
+                        {
+                            "weight": 50,
+                            "value": 6
+                        },
+                        {
+                            "weight": 25,
+                            "value": 5
+                        },
+                        {
+                            "weight": 15,
+                            "value": 4
+                        },
+                        {
+                            "weight": 7,
+                            "value": 3
+                        },
+                        {
+                            "weight": 3,
+                            "value": 2
+                        }
+                    ]
+                },
+                "pri": {
+                    "_gen": "math",
+                    "expr": "(facility * 8) + severity",
+                    "decimals": 0,
+                    "names": {
+                        "facility": {
+                            "_gen": "var",
+                            "var": "facility"
+                        },
+                        "severity": {
+                            "_gen": "var",
+                            "var": "severity"
+                        }
+                    }
+                },
+                "timestamp": {
+                    "_gen": "formatDateTime",
+                    "ms": {
+                        "_gen": "now"
+                    },
+                    "format": "MMM dd HH:mm:ss"
+                },
+                "process": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "sshd",
+                        "nginx",
+                        "systemd",
+                        "kernel",
+                        "cron",
+                        "postgres",
+                        "redis-server"
+                    ]
+                },
+                "pid": {
+                    "_gen": "uniformDistribution",
+                    "bounds": [
+                        1000,
+                        65535
+                    ],
+                    "decimals": 0
+                },
+                "msg": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        { "_gen": "string", "expr": "Connection from #{Internet.publicIpV4Address} port #{Internet.port}" },
+                        { "_gen": "string", "expr": "Accepted publickey for admin from #{Internet.publicIpV4Address}" },
+                        "session opened for user root",
+                        { "_gen": "string", "expr": "Failed password for invalid user #{Name.username} from #{Internet.publicIpV4Address}" },
+                        "segfault at 0000000000000000 ip 00007f2a3c rsp",
+                        { "_gen": "string", "expr": "Out of memory: Kill process #{thePid} (java) score 950", "names": { "thePid": { "_gen": "var", "var": "pid" } } },
+                        { "_gen": "string", "expr": "Started Session #{Number.randomDigit}#{Number.randomDigit}#{Number.randomDigit} of user admin" }
+                    ]
+                }
+            },
+            "key": null,
+            "value": {
+                "_gen": "string",
+                "expr": "<#{pri}>#{timestamp} #{host} #{process}[#{pid}]: #{msg}",
+                "names": {
+                    "pri": { "_gen": "var", "var": "pri" },
+                    "timestamp": { "_gen": "var", "var": "timestamp" },
+                    "host": { "_gen": "var", "var": "host" },
+                    "process": { "_gen": "var", "var": "process" },
+                    "pid": { "_gen": "var", "var": "pid" },
+                    "msg": { "_gen": "var", "var": "msg" }
+                }
+            },
+            "localConfigs": {
+                "throttleMs": {
+                    "_gen": "uniformDistribution",
+                    "bounds": [
+                        50,
+                        300
+                    ]
+                }
+            }
+        },
+        {
+            "_comment": "=== RAW NGINX ACCESS LOGS - Combined format for Flink parsing ===",
+            "connection": "confluent-cloud-raw",
+            "topic": "logs-nginx-raw",
+            "fork": {
+                "key": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "nginx-edge-1",
+                        "nginx-edge-2",
+                        "nginx-origin-1"
+                    ]
+                },
+                "maxForks": 3,
+                "stagger": {
+                    "ms": 25
+                }
+            },
+            "vars": {
+                "clientIp": {
+                    "_gen": "string",
+                    "expr": "#{Internet.publicIpV4Address}"
+                },
+                "timestamp": {
+                    "_gen": "formatDateTime",
+                    "ms": {
+                        "_gen": "now"
+                    },
+                    "format": "dd/MMM/yyyy:HH:mm:ss Z"
+                },
+                "method": {
+                    "_gen": "weightedOneOf",
+                    "choices": [
+                        {
+                            "weight": 70,
+                            "value": "GET"
+                        },
+                        {
+                            "weight": 20,
+                            "value": "POST"
+                        },
+                        {
+                            "weight": 5,
+                            "value": "PUT"
+                        },
+                        {
+                            "weight": 5,
+                            "value": "DELETE"
+                        }
+                    ]
+                },
+                "path": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "/api/v1/users",
+                        "/api/v1/orders",
+                        "/api/v1/products",
+                        "/api/v2/checkout",
+                        "/api/v1/auth/login",
+                        "/api/v1/search",
+                        "/static/js/app.js",
+                        "/static/css/main.css",
+                        "/health",
+                        "/metrics"
+                    ]
+                },
+                "status": {
+                    "_gen": "weightedOneOf",
+                    "choices": [
+                        {
+                            "weight": 75,
+                            "value": 200
+                        },
+                        {
+                            "weight": 8,
+                            "value": 201
+                        },
+                        {
+                            "weight": 5,
+                            "value": 301
+                        },
+                        {
+                            "weight": 3,
+                            "value": 400
+                        },
+                        {
+                            "weight": 5,
+                            "value": 404
+                        },
+                        {
+                            "weight": 3,
+                            "value": 500
+                        },
+                        {
+                            "weight": 1,
+                            "value": 502
+                        }
+                    ]
+                },
+                "bytes": {
+                    "_gen": "uniformDistribution",
+                    "bounds": [
+                        200,
+                        150000
+                    ],
+                    "decimals": 0
+                },
+                "referer": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "-",
+                        "https://www.google.com/",
+                        "https://example.com/products",
+                        "https://example.com/",
+                        "https://m.facebook.com/"
+                    ]
+                },
+                "userAgent": {
+                    "_gen": "string",
+                    "expr": "#{Internet.userAgent}"
+                },
+                "responseTime": {
+                    "_gen": "normalDistribution",
+                    "mean": 0.085,
+                    "sd": 0.15,
+                    "decimals": 3,
+                    "clamp": [
+                        0.001,
+                        30
+                    ]
+                }
+            },
+            "key": null,
+            "value": {
+                "_gen": "string",
+                "expr": "#{clientIp} - - [#{timestamp}] \"#{method} #{path} HTTP/1.1\" #{status} #{bytes} \"#{referer}\" \"#{userAgent}\" #{responseTime}"
+            },
+            "localConfigs": {
+                "throttleMs": {
+                    "_gen": "uniformDistribution",
+                    "bounds": [
+                        5,
+                        100
+                    ]
+                }
+            }
+        },
+        {
+            "_comment": "=== SEMI-STRUCTURED APP LOGS - Mixed formats for Flink normalization ===",
+            "connection": "confluent-cloud-raw",
+            "topic": "logs-app-mixed",
+            "fork": {
+                "key": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "legacy-billing",
+                        "legacy-inventory",
+                        "java-monolith"
+                    ]
+                },
+                "maxForks": 3,
+                "stagger": {
+                    "ms": 200
+                }
+            },
+            "vars": {
+                "app": {
+                    "_gen": "var",
+                    "var": "forkKey"
+                },
+                "timestamp": {
+                    "_gen": "formatDateTime",
+                    "ms": {
+                        "_gen": "now"
+                    },
+                    "format": "yyyy-MM-dd HH:mm:ss,SSS"
+                },
+                "level": {
+                    "_gen": "weightedOneOf",
+                    "choices": [
+                        {
+                            "weight": 60,
+                            "value": "INFO"
+                        },
+                        {
+                            "weight": 20,
+                            "value": "WARN"
+                        },
+                        {
+                            "weight": 15,
+                            "value": "ERROR"
+                        },
+                        {
+                            "weight": 5,
+                            "value": "DEBUG"
+                        }
+                    ]
+                },
+                "thread": {
+                    "_gen": "string",
+                    "expr": "pool-#{Number.randomDigit}-thread-#{Number.randomDigit}#{Number.randomDigit}"
+                },
+                "className": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "com.example.billing.PaymentProcessor",
+                        "com.example.inventory.StockManager",
+                        "com.example.core.DatabasePool",
+                        "org.springframework.web.servlet.DispatcherServlet",
+                        "com.zaxxer.hikari.HikariDataSource"
+                    ]
+                }
+            },
+            "key": {
+                "_gen": "var",
+                "var": "app"
+            },
+            "value": {
+                "_gen": "oneOf",
+                "choices": [
+                    {
+                        "_gen": "string",
+                        "expr": "#{timestamp} #{level} [#{thread}] #{className} - Processing request id=#{Internet.uuid}"
+                    },
+                    {
+                        "_gen": "string",
+                        "expr": "#{timestamp} #{level} [#{thread}] #{className} - DB query took #{Number.positive}ms | rows=#{Number.randomDigit}#{Number.randomDigit}"
+                    },
+                    {
+                        "_gen": "string",
+                        "expr": "#{level}|#{timestamp}|#{thread}|#{className}|Transaction completed amount=$#{Number.positive}.#{Number.randomDigit}#{Number.randomDigit}"
+                    },
+                    {
+                        "_gen": "string",
+                        "expr": "[#{timestamp}] #{level}: #{className} :: Cache stats - hits=#{Number.positive} misses=#{Number.randomDigit}#{Number.randomDigit} ratio=0.#{Number.randomDigit}#{Number.randomDigit}"
+                    }
+                ]
+            },
+            "localConfigs": {
+                "throttleMs": {
+                    "_gen": "uniformDistribution",
+                    "bounds": [
+                        100,
+                        500
+                    ]
+                }
+            }
+        },
+        {
+            "_comment": "=== OTEL-STYLE METRICS/TRACES - Structured for direct analytics ===",
+            "connection": "confluent-cloud",
+            "topic": "telemetry-otel",
+            "vars": {
+                "traceId": {
+                    "_gen": "uuid"
+                },
+                "spanId": {
+                    "_gen": "uuid"
+                },
+                "parentSpanId": {
+                    "_gen": "weightedOneOf",
+                    "choices": [
+                        {
+                            "weight": 30,
+                            "value": null
+                        },
+                        {
+                            "weight": 70,
+                            "value": {
+                                "_gen": "uuid"
+                            }
+                        }
+                    ]
+                }
+            },
+            "key": {
+                "_gen": "var",
+                "var": "traceId"
+            },
+            "value": {
+                "resourceSpans": [
+                    {
+                        "resource": {
+                            "attributes": [
+                                {
+                                    "key": "service.name",
+                                    "value": {
+                                        "stringValue": {
+                                            "_gen": "oneOf",
+                                            "choices": [
+                                                "frontend",
+                                                "api",
+                                                "worker",
+                                                "scheduler"
+                                            ]
+                                        }
+                                    }
+                                },
+                                {
+                                    "key": "service.version",
+                                    "value": {
+                                        "stringValue": {
+                                            "_gen": "string",
+                                            "expr": "#{App.version}"
+                                        }
+                                    }
+                                },
+                                {
+                                    "key": "host.name",
+                                    "value": {
+                                        "stringValue": {
+                                            "_gen": "string",
+                                            "expr": "#{Internet.domainWord}-#{Number.randomDigit}#{Number.randomDigit}"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "scopeSpans": [
+                            {
+                                "spans": [
+                                    {
+                                        "traceId": {
+                                            "_gen": "var",
+                                            "var": "traceId"
+                                        },
+                                        "spanId": {
+                                            "_gen": "var",
+                                            "var": "spanId"
+                                        },
+                                        "parentSpanId": {
+                                            "_gen": "var",
+                                            "var": "parentSpanId"
+                                        },
+                                        "name": {
+                                            "_gen": "oneOf",
+                                            "choices": [
+                                                "HTTP GET",
+                                                "HTTP POST",
+                                                "db.query",
+                                                "cache.get",
+                                                "queue.publish",
+                                                "rpc.call"
+                                            ]
+                                        },
+                                        "kind": {
+                                            "_gen": "oneOf",
+                                            "choices": [
+                                                1,
+                                                2,
+                                                3
+                                            ]
+                                        },
+                                        "startTimeUnixNano": {
+                                            "_gen": "now"
+                                        },
+                                        "endTimeUnixNano": {
+                                            "_gen": "add",
+                                            "args": [
+                                                {
+                                                    "_gen": "now"
+                                                },
+                                                {
+                                                    "_gen": "uniformDistribution",
+                                                    "bounds": [
+                                                        1000000,
+                                                        500000000
+                                                    ],
+                                                    "decimals": 0
+                                                }
+                                            ]
+                                        },
+                                        "status": {
+                                            "code": {
+                                                "_gen": "weightedOneOf",
+                                                "choices": [
+                                                    {
+                                                        "weight": 92,
+                                                        "value": 1
+                                                    },
+                                                    {
+                                                        "weight": 8,
+                                                        "value": 2
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "attributes": [
+                                            {
+                                                "key": "http.status_code",
+                                                "value": {
+                                                    "intValue": {
+                                                        "_gen": "weightedOneOf",
+                                                        "choices": [
+                                                            {
+                                                                "weight": 90,
+                                                                "value": 200
+                                                            },
+                                                            {
+                                                                "weight": 5,
+                                                                "value": 400
+                                                            },
+                                                            {
+                                                                "weight": 5,
+                                                                "value": 500
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            "localConfigs": {
+                "throttleMs": {
+                    "_gen": "uniformDistribution",
+                    "bounds": [
+                        10,
+                        80
+                    ]
+                }
+            }
+        }
+    ],
+    "connections": {
+        "confluent-cloud": {
+            "kind": "kafka",
+            "producerConfigs": {
+                "bootstrap.servers": {
+                    "_gen": "env",
+                    "var": "CONFLUENT_BOOTSTRAP_SERVERS"
+                },
+                "security.protocol": "SASL_SSL",
+                "sasl.mechanism": "PLAIN",
+                "sasl.jaas.config": {
+                    "_gen": "env",
+                    "var": "CONFLUENT_SASL_JAAS_CONFIG",
+                    "mask": true
+                },
+                "key.serializer": "org.apache.kafka.common.serialization.StringSerializer",
+                "value.serializer": "io.shadowtraffic.kafka.serdes.JsonSerializer"
+            },
+            "topicPolicy": {
+                "policy": "create",
+                "partitions": 6,
+                "replicationFactor": 3
+            }
+        },
+        "confluent-cloud-raw": {
+            "kind": "kafka",
+            "producerConfigs": {
+                "bootstrap.servers": {
+                    "_gen": "env",
+                    "var": "CONFLUENT_BOOTSTRAP_SERVERS"
+                },
+                "security.protocol": "SASL_SSL",
+                "sasl.mechanism": "PLAIN",
+                "sasl.jaas.config": {
+                    "_gen": "env",
+                    "var": "CONFLUENT_SASL_JAAS_CONFIG",
+                    "mask": true
+                },
+                "key.serializer": "org.apache.kafka.common.serialization.StringSerializer",
+                "value.serializer": "org.apache.kafka.common.serialization.StringSerializer"
+            },
+            "topicPolicy": {
+                "policy": "create",
+                "partitions": 6,
+                "replicationFactor": 3
+            }
+        }
+    }
+}
