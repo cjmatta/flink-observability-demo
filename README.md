@@ -1,4 +1,4 @@
-# Observability Demo with ShadowTraffic
+# Confluent Cloud Flink Observability Demo with ShadowTraffic
 
 A data generation setup for demonstrating Confluent Cloud Flink SQL capabilities with observability data: logs, metrics, and traces.
 
